@@ -1,7 +1,7 @@
 from nicegui import ui
-# Import JIRA client library if not already done
 from jira import JIRA
 import menu
+from aws_details_tab import AwsDetailsForm
 
 
 
@@ -10,15 +10,13 @@ def get_env_var(key):
     # Implement this function to fetch environment variables
     return "Your_Value_Here"
 
-def GetProjectList():
-    userName = menu.getJsonVal("env_var", "JIRAUSER")
-    passWord = menu.getJsonVal("env_var", "JIRAPASS")
-    urlPath = menu.getJsonVal("env_var", "JIRAURL")
+userName = menu.getJsonVal("env_var", "JIRAUSER")
+passWord = menu.getJsonVal("env_var", "JIRAPASS")
+urlPath = menu.getJsonVal("env_var", "JIRAURL")
+jiraOptions = {'server': urlPath, 'verify': False}
+jira = JIRA(options=jiraOptions, basic_auth=(userName, passWord))
+def GetProjectList(jira):
     jqlStr = menu.getJsonVal("env_var", "KICKOFF")
-
-    jiraOptions = {'server': urlPath, 'verify': False}
-    jira = JIRA(options=jiraOptions, basic_auth=(userName, passWord))
-
     all_issues = []
     start_at = 0
     max_results = 50  # Adjust this if needed
@@ -32,37 +30,29 @@ def GetProjectList():
     issueList = [{'id': issue.key, 'summary': issue.fields.summary} for issue in all_issues]
     return issueList
 
-    # Fetch all projects instead of searching for issues
-    #unique_projects = {}
-
-    # Iterate over each issue to extract project information
-    #for issue in issues:
-        #project = issue.fields.project
-        #unique_projects[project.key] = project.name
-
-    # Convert the unique projects dictionary to a list of dictionaries
-    #projectList = [{'id': key, 'description': name} for key, name in unique_projects.items()]
-    #return projectList
-
-
-def setup_project_dropdown():
-    # This is the start of the function block, everything inside needs to be indented
-
+aws_details_form_instance = AwsDetailsForm()
+def setup_project_dropdown(jira, container):
     def on_project_select(event):
-        # This is a nested function, so it has another level of indentation
+        nonlocal client_code_label
         selected_issue_key = event.value
-        # More code for handling the selected project...
+        selected_issue = jira.issue(selected_issue_key)
+        client_code = getattr(selected_issue.fields, 'customfield_45in567', 'Not Available')
+        client_code_label.text = f"Client Code: {client_code}"
 
-    # Back to the main function block indentation level
-    issueList = GetProjectList()
+        selected_project_id = event.value
+        aws_details_form_instance.update_with_project(selected_project_id)
+
+    issueList = GetProjectList(jira)
     issue_options = [(issue['id'], f"{issue['id']} - {issue['summary']}") for issue in issueList]
 
-    # Still within the setup_project_dropdown function block
-    issue_dropdown = ui.select(label='Search Project', options=issue_options, with_input=True, on_change=on_project_select)
-    # More code for the function...
+    # Create the dropdown and label directly within the container
+    issue_dropdown = container.select(label='Search Project', options=issue_options, with_input=True, on_change=on_project_select)
+    client_code_label = container.label('Client Code: Not selected')
 
 
-# Now we're back to the outermost indentation level, indicating the end of the setup_project_dropdown function
+
+
+
 
 
 def display_project_details(project_id):
@@ -70,41 +60,6 @@ def display_project_details(project_id):
     pass
 
 # This is assuming you are calling this function to set up the UI components
-setup_project_dropdown()
+#setup_project_dropdown(jira)
 
-
-# Global variable to store all issues fetched once
-#all_issues = []
-
-"""def setup_search_bar():
-    global all_issues
-    search_results_label = ui.label('')  # This label will display search results.
-
-    # Fetch all issues when setting up the search bar
-    if not all_issues:
-        all_issues = GetProjectList()
-
-    def on_search_input(event):
-        # Make sure this is the correct way to access the input's value in nicegui
-        search_term = event.value.lower().strip()
-        if search_term:
-            matching_issues = [issue for issue in all_issues if search_term in issue['summary'].lower()]
-            if matching_issues:
-                # Update the label's text with the matching issues
-                search_results_label.set_text('\n'.join(f"{issue['id']} - {issue['summary']}" for issue in matching_issues))
-            else:
-                search_results_label.set_text('No matching issues found.')
-        else:
-            search_results_label.set_text('')  # Reset the label text to empty
-
-    search_input = ui.input(placeholder='Search Project...')
-    # Bind the event handler to the 'input' event
-    search_input.on('input', on_search_input)
-
-
-
-
-# ... inside your main UI setup code ...
-setup_search_bar()
-# ... rest of your UI setup ..."""
 
