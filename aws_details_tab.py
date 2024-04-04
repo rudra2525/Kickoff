@@ -1,5 +1,4 @@
 from nicegui import ui
-from myDbConnection import myDbfunction
 
 # Assuming form_data and other necessary imports or global variables are managed appropriately
 #account_type = None
@@ -117,46 +116,11 @@ class AwsDetailsForm:
         self.field_elements['instance_type'].show()
         # ... show all other fields related to subscription
 
-    def update_with_project(self, project_id):
-        """
-        Called when a project is selected. Updates the form with the project's details.
-        """
-        # Fetch project details from the database
-        db = myDbfunction()
-        project_details = db.query_project_info(project_id)
-
-        if project_details:
-            # Set the client ID and other project-related information
-            self.form_data['client_ID'] = project_details['ClientCode']
-            # ... set other project-related information
-
-            # Populate the subscription fields if the account type is 'Subscriptions'
-            if self.form_data.get('account_type') == 'Subscriptions':
-                self.fill_subscription_fields(project_details['ClientCode'])
-
-    def fill_subscription_fields(self, client_code):
-        """
-        Fetches subscription details for the given client code and updates the form fields.
-        """
-        db = myDbfunction()
-        subscription_details = db.query_awsAccount(client_code)
-
-        if subscription_details:
-            # Assuming 'subscription_details' is a dict containing 'aws_account' and 'aws_region'
-            self.aws_account = subscription_details['aws_account']
-            self.aws_region = subscription_details['aws_region']
-            # Update the field_elements to show the values
-            self.field_elements['aws_account'].value = self.aws_account
-            self.field_elements['aws_region'].value = self.aws_region
-            # ... fill in other subscription fields as necessary
-
     def setup_aws_details_tab(self):
         # Setup the account type selector
-        default_account_type_is_new = True  # Or False, depending on your requirements
-
         self.account_type_switch = ui.switch(
             'New Account',
-            value=default_account_type_is_new,
+            value=True,  # Assuming True means 'New Account', False means 'Subscription'
             on_change=self.on_account_type_change
         )
 
@@ -186,7 +150,7 @@ class AwsDetailsForm:
             if hasattr(element, 'visible'):
                 element.visible = False
 
-        self.update_fields_visibility(default_account_type_is_new)
+        self.update_fields_visibility(self.account_type_switch.value)
 
         ui.button('Save Details', on_click=self.update_aws_details)
 
