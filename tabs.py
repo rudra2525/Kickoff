@@ -1,7 +1,7 @@
 from nicegui import ui
 #from aws_details_tab import setup_aws_details_tab
 from aws_details_tab import AwsDetailsForm
-from search_and_details import setup_project_dropdown
+from search_and_details import setup_project_dropdown, jira
 from network_details_tab import NetworkDetailsForm
 import requests
 
@@ -9,6 +9,9 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 
 aws_details_form = AwsDetailsForm()
 network_details_form = NetworkDetailsForm()
+
+ui.label('Project Details').classes('text-h4')
+setup_project_dropdown(jira, ui)
 
 form_data = {}
 with ui.splitter(value=10).classes('w-full h-full') as splitter:
