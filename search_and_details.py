@@ -1,7 +1,10 @@
 from nicegui import ui
 from jira import JIRA
 import menu
+from aws_details_tab import AwsDetailsForm
+import urllib3
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 # Placeholder for getting environment variables
@@ -29,7 +32,7 @@ def GetProjectList(jira):
     issueList = [{'id': issue.key, 'summary': issue.fields.summary} for issue in all_issues]
     return issueList
 
-
+aws_details_form_instance = AwsDetailsForm()
 def setup_project_dropdown(jira, container):
     def on_project_select(event):
         nonlocal client_code_label
@@ -37,6 +40,9 @@ def setup_project_dropdown(jira, container):
         selected_issue = jira.issue(selected_issue_key)
         client_code = getattr(selected_issue.fields, 'customfield_45in567', 'Not Available')
         client_code_label.text = f"Client Code: {client_code}"
+
+        selected_project_id = event.value
+        aws_details_form_instance.update_with_project(selected_project_id)
 
     issueList = GetProjectList(jira)
     issue_options = [(issue['id'], f"{issue['id']} - {issue['summary']}") for issue in issueList]
@@ -46,9 +52,16 @@ def setup_project_dropdown(jira, container):
     client_code_label = container.label('Client Code: Not selected')
 
 
-# Now we're back to the outermost indentation level, indicating the end of the setup_project_dropdown function
+
+
+
 
 
 def display_project_details(project_id):
     # Logic to display details for the selected project
     pass
+
+# This is assuming you are calling this function to set up the UI components
+#setup_project_dropdown(jira)
+
+
