@@ -1,8 +1,10 @@
 from nicegui import ui
-#from myDbConnection import myDbfunction
+# from myDbConnection import myDbfunction
 from Dbconnector import Dbfunction
+
+
 # Assuming form_data and other necessary imports or global variables are managed appropriately
-#account_type = None
+# account_type = None
 class AwsDetailsForm:
     def __init__(self):
         self.db = Dbfunction()
@@ -37,7 +39,7 @@ class AwsDetailsForm:
         ]
 
     def initialize_fields(self):
-            # Initialize all fields to None
+        # Initialize all fields to None
         self.outlook_distribution_list = None
         self.account_type = None
         self.dl_members = None
@@ -50,15 +52,13 @@ class AwsDetailsForm:
         self.client_ID = None
         self.environment_type = None
         self.gm_approval = None
-            # Initialize additional fields for subscription
+        # Initialize additional fields for subscription
         self.aws_account = None
         self.aws_region = None
         self.os_type = None
         self.instance_type = None
 
-
     # Mock function to retrieve stored data for Subscriptions
-
 
     def update_form_data(self, event=None):
         # Implementation to update form_data based on the input fields
@@ -73,7 +73,6 @@ class AwsDetailsForm:
         self.form_data['Four Digit Client ID'] = self.client_ID.value
         self.form_data['Environment Type'] = self.environment_type.value
         self.form_data['GM Approval'] = self.gm_approval.value
-
 
     def update_aws_details(self, event):
         # Update form_data with the values from inputs
@@ -119,9 +118,9 @@ class AwsDetailsForm:
         # ... show all other fields related to subscription
 
     """def update_with_project(self, project_id):
-        
+
         Called when a project is selected. Updates the form with the project's details.
-        
+
         # Fetch project details from the database
         db = myDbfunction()
         project_details = db.query_project_info(project_id)
@@ -136,9 +135,9 @@ class AwsDetailsForm:
                 self.fill_subscription_fields(project_details['ClientCode'])
 
     def fill_subscription_fields(self, client_code):
-        
+
         Fetches subscription details for the given client code and updates the form fields.
-        
+
         db = myDbfunction()
         subscription_details = db.query_awsAccount(client_code)
 
@@ -151,6 +150,7 @@ class AwsDetailsForm:
             self.field_elements['aws_region'].value = self.aws_region
             # ... fill in other subscription fields as necessary
     """
+
     def setup_aws_details_tab(self):
         # Setup the account type selector
         default_account_type_is_new = True  # Or False, depending on your requirements
@@ -163,21 +163,18 @@ class AwsDetailsForm:
 
         self.setup_aws_region_dropdown()
 
-
-
-
         # Setup all input fields and store their references
         self.field_elements['outlook_distribution_list'] = ui.input(label='Outlook Distribution list')
         self.field_elements['dl_members'] = ui.textarea(label='DL Members')
-        self.field_elements['account_admin']= ui.textarea(label='Account Admins')
-        self.field_elements['cloud_health_users']= ui.textarea(label='Cloud Health Users')
-        self.field_elements['cost_center']= ui.textarea(label='Accounting Cost Center')
-        self.field_elements['primary_contact']= ui.textarea(label='Primary contact')
-        self.field_elements['secondary_contact']= ui.textarea(label='Secondary contact')
-        self.field_elements['technical_contact']= ui.textarea(label='Technical contact')
-        self.field_elements['client_ID']= ui.textarea(label='Four Digit Client ID')
-        self.field_elements['environment_type']= ui.textarea(label='Environment Type')
-        self.field_elements['gm_approval']= ui.textarea(label='GM Approval')
+        self.field_elements['account_admin'] = ui.textarea(label='Account Admins')
+        self.field_elements['cloud_health_users'] = ui.textarea(label='Cloud Health Users')
+        self.field_elements['cost_center'] = ui.textarea(label='Accounting Cost Center')
+        self.field_elements['primary_contact'] = ui.textarea(label='Primary contact')
+        self.field_elements['secondary_contact'] = ui.textarea(label='Secondary contact')
+        self.field_elements['technical_contact'] = ui.textarea(label='Technical contact')
+        self.field_elements['client_ID'] = ui.textarea(label='Four Digit Client ID')
+        self.field_elements['environment_type'] = ui.textarea(label='Environment Type')
+        self.field_elements['gm_approval'] = ui.textarea(label='GM Approval')
         # ... setup and hide all other fields
 
         # Additional fields for subscriptions
@@ -210,10 +207,17 @@ class AwsDetailsForm:
         self.update_fields_visibility(event.value)
 
     def update_fields_visibility(self, is_new_account):
-        # Update the visibility of the fields based on the value of the switch
+        # Hide or show fields based on whether it's a new account or subscription
         for field_key in self.new_account_fields:
             if field_key in self.field_elements:
+                # For new account fields, show them if is_new_account is True
                 self.field_elements[field_key].visible = is_new_account
+
         for field_key in self.subscription_fields:
             if field_key in self.field_elements:
+                # For subscription fields, show them if is_new_account is False
                 self.field_elements[field_key].visible = not is_new_account
+
+        # The 'aws_region' field is a special case as it should only be visible for subscriptions
+        if 'aws_region' in self.field_elements:
+            self.field_elements['aws_region'].visible = not is_new_account
