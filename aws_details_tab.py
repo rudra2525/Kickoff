@@ -1,11 +1,6 @@
 from nicegui import ui
-# from myDbConnection import myDbfunction
 from Dbconnector import Dbfunction
-import json
 
-
-# Assuming form_data and other necessary imports or global variables are managed appropriately
-# account_type = None
 class AwsDetailsForm:
     def __init__(self):
         self.db = Dbfunction()
@@ -118,58 +113,18 @@ class AwsDetailsForm:
         self.field_elements['instance_type'].show()
         # ... show all other fields related to subscription
 
-    """def update_with_project(self, project_id):
-
-        Called when a project is selected. Updates the form with the project's details.
-
-        # Fetch project details from the database
-        db = myDbfunction()
-        project_details = db.query_project_info(project_id)
-
-        if project_details:
-            # Set the client ID and other project-related information
-            self.form_data['client_ID'] = project_details['ClientCode']
-            # ... set other project-related information
-
-            # Populate the subscription fields if the account type is 'Subscriptions'
-            if self.form_data.get('account_type') == 'Subscriptions':
-                self.fill_subscription_fields(project_details['ClientCode'])
-
-    def fill_subscription_fields(self, client_code):
-
-        Fetches subscription details for the given client code and updates the form fields.
-
-        db = myDbfunction()
-        subscription_details = db.query_awsAccount(client_code)
-
-        if subscription_details:
-            # Assuming 'subscription_details' is a dict containing 'aws_account' and 'aws_region'
-            self.aws_account = subscription_details['aws_account']
-            self.aws_region = subscription_details['aws_region']
-            # Update the field_elements to show the values
-            self.field_elements['aws_account'].value = self.aws_account
-            self.field_elements['aws_region'].value = self.aws_region
-            # ... fill in other subscription fields as necessary
-    """
+    
 
     def setup_aws_details_tab(self):
-        # Setup the account type selector
-        #default_account_type_is_new = True  # Or False, depending on your requirements
         self.account_type_switch = ui.switch('New Account', value=True, on_change=self.on_account_type_change)
-        #self.field_elements['aws_account'] = ui.select(label='AWS Account', options=[account_options]).classes('w-60')
-        """self.account_type_switch = ui.switch(
-            'New Account',
-            value=default_account_type_is_new,
-            on_change=self.on_account_type_change
-        )"""
         self.field_elements['aws_account'] = ui.select(label='AWS Account', options=[]).classes('w-60')
         self.field_elements['aws_account'].visible = False
 
         self.setup_aws_region_dropdown()
+        self.setup_os_type_dropdown()
 
-        #self.field_elements['aws_account'] = ui.select(label='AWS Account', options=[])
-        #self.field_elements['aws_account'].visible = False
-
+        # Update visibility based on initial switch state
+        self.update_dropdown_visibility()
 
 
         # Setup all input fields and store their references
@@ -189,11 +144,10 @@ class AwsDetailsForm:
         # Additional fields for subscriptions
         #self.field_elements['aws_account'] = ui.input(label='AWS Account')
         #self.field_elements['aws_region'] = ui.input(label='AWS Region')
-        self.field_elements['os_type'] = ui.input(label='OS Type')
+        #self.field_elements['os_type'] = ui.input(label='OS Type')
         self.field_elements['instance_type'] = ui.input(label='Instance Type')
 
-          # Update visibility based on initial switch state
-        self.update_dropdown_visibility()
+
 
         for element in self.field_elements.values():
             if hasattr(element, 'visible'):
@@ -217,10 +171,7 @@ class AwsDetailsForm:
         awsAccName = sorted({value for value in aws_accounts.values()})
         account_options = [(acc_num, f"{acc_num} - {desc}") for acc_num, desc in aws_accounts.items()]
 
-        self.field_elements['aws_account'].options = account_options
-        self.field_elements['aws_account'].visible = True
-
-        """if 'aws_account' in self.field_elements:
+        if 'aws_account' in self.field_elements:
             # If it exists, just update its options
             self.field_elements['aws_account'].options = account_options
         else:
@@ -229,9 +180,20 @@ class AwsDetailsForm:
 
             # Set the visibility based on the account type
         self.field_elements['aws_account'].visible = not self.account_type_switch.value
-        # Update options and visibility
-        #self.field_elements['aws_account'].options = account_options
-        #self.update_dropdown_visibility() """
+
+    def setup_os_type_dropdown(self):
+        os_types = self.db.query_os_type()
+        os_type_options = [(os_type['OS_TYPE_NAME']) for os_type in os_types]
+
+        if 'os_type' in self.field_elements:
+            # If the dropdown exists, update its options using OS type names only
+            self.field_elements['os_type'].options = os_type_options
+        else:
+            # If the dropdown doesn't exist, create it using OS type names only
+            self.field_elements['os_type'] = ui.select(label='OS Type', options=os_type_options).classes('w-60')
+
+        # Set the visibility based on the account type
+        self.field_elements['os_type'].visible = not self.account_type_switch.value
 
     def on_account_type_change(self, event):
         is_new_account = self.account_type_switch.value
@@ -241,16 +203,23 @@ class AwsDetailsForm:
         self.update_dropdown_visibility()
 
     def update_dropdown_visibility(self):
-        # Update visibility based on account type (switch state)
-        is_subscription = not self.account_type_switch.value
+        # The switch is 'off' when the value is False, hence dropdowns should be visible
+        should_be_visible = not self.account_type_switch.value
 
-        # Check if 'aws_account' exists in the dictionary before accessing it
+        # Set the visibility of the dropdowns based on the switch state
+
         if 'aws_account' in self.field_elements:
-            self.field_elements['aws_account'].visible = is_subscription
+            # Make sure the 'os_type' dropdown is visible if the switch is off
+            self.field_elements['aws_account'].visible = should_be_visible
 
-        # Check if 'aws_region' exists in the dictionary before accessing it
         if 'aws_region' in self.field_elements:
-            self.field_elements['aws_region'].visible = is_subscription
+            # Make sure the 'os_type' dropdown is visible if the switch is off
+            self.field_elements['aws_region'].visible = should_be_visible
+
+        if 'os_type' in self.field_elements:
+            # Make sure the 'os_type' dropdown is visible if the switch is off
+            self.field_elements['os_type'].visible = should_be_visible
+
 
     def update_fields_visibility(self, is_new_account):
         # Hide or show fields based on whether it's a new account or subscription
