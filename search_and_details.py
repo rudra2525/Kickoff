@@ -2,6 +2,9 @@ from nicegui import ui
 from jira import JIRA
 import menu
 import urllib3
+from aws_details_tab import AwsDetailsForm
+
+aws_details_form = AwsDetailsForm()
 
 # Disable warnings from unverified HTTPS requests
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -36,7 +39,7 @@ def GetProjectList(jira):
     return issueList
 
 
-def setup_project_dropdown(jira, container):
+def setup_project_dropdown(jira, container, aws_details_form_instance):
     # Callback function for handling project selection changes
     def on_project_select(event):
         selected_issue_key = event.value
@@ -44,6 +47,7 @@ def setup_project_dropdown(jira, container):
 
         # Fetch the client code from the selected issue using its custom field ID
         client_code = getattr(selected_issue.fields, 'customfield_45567', 'Not Available')
+        aws_details_form_instance.setup_aws_account_dropdown(client_code)
 
         # Update the text of the client code label to display the fetched client code
         client_code_label.text = f"Client Code: {client_code}"
@@ -51,12 +55,8 @@ def setup_project_dropdown(jira, container):
     # Fetch the list of projects/issues to populate the dropdown options
     issueList = GetProjectList(jira)
     issue_options = [(issue['id'], f"{issue['id']} - {issue['summary']}") for issue in issueList]
-
-    # Create the project selection dropdown and the client code label within the provided container
-    issue_dropdown = container.select(label='Search Project', options=issue_options, with_input=True,
-                                      on_change=on_project_select)
+    issue_dropdown = container.select(label='Search Project', options=issue_options, with_input=True, on_change=on_project_select).style('width: 256px;')
     client_code_label = container.label('Client Code: Not selected')
-
 # Call the setup_project_dropdown function, providing the jira client and the target UI container
 # For example, if adding directly to the main UI, use:
 # setup_project_dropdown(jira, ui)
