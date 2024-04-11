@@ -60,12 +60,12 @@ class Dbfunction():
             if 'connection' in locals() and connection.is_connected():
                 connection.close()
 
-    def query_awsAcc(self, client_id):
-        query_stm = f"select  cacc.accountnumber,cacc.description " \
-                    f"from cld_accounts cacc " \
-                    f"where cacc.clientid = '{client_id}'" \
-                    f"  and cacc.accountstatus = 'OPEN'"
-        return (excute_query(stsportal_config, query_stm, True, 2))
+    def query_awsAcc(self, client_code):
+        query_stm = f"SELECT cacc.accountnumber, cacc.description " \
+                    f"FROM cld_accounts cacc " \
+                    f"WHERE cacc.clientid = '{client_code}' " \
+                    f"AND cacc.accountstatus = 'OPEN'"
+        return self.execute_query(self.stsportal_config, query_stm, fetchAll=True, ReturnType=2)
 
     def query_awsRegion(self):
         query_stm = f"select ca.code,ca.name from cld_awsregions ca"
