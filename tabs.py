@@ -2,16 +2,34 @@ from nicegui import ui
 #from aws_details_tab import setup_aws_details_tab
 from aws_details_tab import AwsDetailsForm
 from search_and_details import setup_project_dropdown, jira
-from network_details_tab import NetworkDetailsForm
+from NetworkTab import NetworkDetailsForm
+from ProjectDet import ProjecDetail
 import requests
+from website.demo import section_window
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
-
+# Sample ProjDetail data
+ProjDetail = {
+    "summary": "Project Name",
+    "jirakey": "Jira Key",
+    "Projecttype": "Project Type",
+    "platform": "Platform",
+    "Location": "Location",
+    "ClientCode": "Client Code",
+    "Bustechowner": "Tech Owner",
+    "Techlead": "Tech Lead",
+    "DBAlead": "DBA Lead",
+    "eEnvironment": "Environment Type",
+    "Objective": "Objective",
+    # Add other fields here...
+}
 aws_details_form = AwsDetailsForm()
 network_details_form = NetworkDetailsForm()
+ui.label('Project Intake Form').classes('text-h3 py-4').style('text-align: center; width: 100%;')
+setup_project_dropdown(jira, ui, aws_details_form)
+ProjecDetail(ProjDetail)
 
-ui.label('Project Details').classes('text-h4')
-setup_project_dropdown(jira, ui)
+
 
 form_data = {}
 with ui.splitter(value=10).classes('w-full h-full') as splitter:
@@ -33,15 +51,15 @@ with ui.splitter(value=10).classes('w-full h-full') as splitter:
         with ui.tab_panels(tabs, value=aws_details).props('vertical').classes('w-full h-full'):
 
             with ui.tab_panel(aws_details):
-                ui.label('AWS Account').classes('text-h4')
-                aws_details_form.setup_aws_details_tab()
-                ui.button('Save Details', on_click=aws_details_form.update_form_data)
+                #ui.label('AWS Account').classes('text-h4')
+                with section_window("AWS Account", classes='w-full'):
+                    aws_details_form.setup_aws_details_tab()
+                    ui.button('Save Details', on_click=aws_details_form.update_form_data)
 
             with ui.tab_panel(network_info):
                 ui.label('Network Information').classes('text-h4')
-                network_details_form.setup_network_details_tab()
+                network_details_form.setup_NetworkTab()
                 ui.button('Save Details', on_click=network_details_form.update_network_details)
-
             # Define more tab panels for other tabs...
 
 ui.run(title='Project Kickoff UI', port=8082)
