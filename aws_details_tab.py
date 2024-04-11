@@ -1,6 +1,7 @@
 from nicegui import ui
 # from myDbConnection import myDbfunction
 from Dbconnector import Dbfunction
+import json
 
 
 # Assuming form_data and other necessary imports or global variables are managed appropriately
@@ -153,18 +154,26 @@ class AwsDetailsForm:
 
     def setup_aws_details_tab(self):
         # Setup the account type selector
-        default_account_type_is_new = True  # Or False, depending on your requirements
-
-        self.account_type_switch = ui.switch(
+        #default_account_type_is_new = True  # Or False, depending on your requirements
+        self.account_type_switch = ui.switch('New Account', value=True, on_change=self.on_account_type_change)
+        #self.field_elements['aws_account'] = ui.select(label='AWS Account', options=[account_options]).classes('w-60')
+        """self.account_type_switch = ui.switch(
             'New Account',
             value=default_account_type_is_new,
             on_change=self.on_account_type_change
-        )
+        )"""
+        self.field_elements['aws_account'] = ui.select(label='AWS Account', options=[]).classes('w-60')
+        self.field_elements['aws_account'].visible = False
 
         self.setup_aws_region_dropdown()
 
+        #self.field_elements['aws_account'] = ui.select(label='AWS Account', options=[])
+        #self.field_elements['aws_account'].visible = False
+
+
+
         # Setup all input fields and store their references
-        self.field_elements['outlook_distribution_list'] = ui.input(label='Outlook Distribution list')
+        self.field_elements['outlook_distribution_list'] = ui.input(label='Outlook Distribution list').classes('pl-12 w-full')
         self.field_elements['dl_members'] = ui.textarea(label='DL Members')
         self.field_elements['account_admin'] = ui.textarea(label='Account Admins')
         self.field_elements['cloud_health_users'] = ui.textarea(label='Cloud Health Users')
@@ -178,46 +187,81 @@ class AwsDetailsForm:
         # ... setup and hide all other fields
 
         # Additional fields for subscriptions
-        self.field_elements['aws_account'] = ui.input(label='AWS Account')
-        self.field_elements['aws_region'] = ui.input(label='AWS Region')
+        #self.field_elements['aws_account'] = ui.input(label='AWS Account')
+        #self.field_elements['aws_region'] = ui.input(label='AWS Region')
         self.field_elements['os_type'] = ui.input(label='OS Type')
         self.field_elements['instance_type'] = ui.input(label='Instance Type')
+
+          # Update visibility based on initial switch state
+        self.update_dropdown_visibility()
 
         for element in self.field_elements.values():
             if hasattr(element, 'visible'):
                 element.visible = False
 
-        self.update_fields_visibility(default_account_type_is_new)
+        self.update_fields_visibility(self.account_type_switch.value)
 
         ui.button('Save Details', on_click=self.update_aws_details)
 
     def setup_aws_region_dropdown(self):
         aws_regions = self.db.query_awsRegion()
-        print("AWS Regions Data:", aws_regions)  # Debug print
-
         if isinstance(aws_regions, dict):
             # Convert the dictionary to a list of tuples and sort by region name
             region_options = sorted(aws_regions.items(), key=lambda item: item[1])
-            self.field_elements['aws_region'] = ui.select(label='AWS Region', options=region_options)
+            self.field_elements['aws_region'] = ui.select(label='AWS Region', options=region_options).classes('w-60')
         else:
             print("Unexpected data structure for AWS regions")
 
+    def setup_aws_account_dropdown(self, client_code):
+        aws_accounts = self.db.query_awsAcc(client_code)
+        awsAccName = sorted({value for value in aws_accounts.values()})
+        account_options = [(acc_num, f"{acc_num} - {desc}") for acc_num, desc in aws_accounts.items()]
+
+        self.field_elements['aws_account'].options = account_options
+        self.field_elements['aws_account'].visible = True
+
+        """if 'aws_account' in self.field_elements:
+            # If it exists, just update its options
+            self.field_elements['aws_account'].options = account_options
+        else:
+            # If it doesn't exist, create the dropdown and add it to field_elements
+            self.field_elements['aws_account'] = ui.select(label='AWS Account', options=awsAccName).classes('w-60')
+
+            # Set the visibility based on the account type
+        self.field_elements['aws_account'].visible = not self.account_type_switch.value
+        # Update options and visibility
+        #self.field_elements['aws_account'].options = account_options
+        #self.update_dropdown_visibility() """
+
     def on_account_type_change(self, event):
-        # This method now receives a switch event, which contains a boolean
-        self.update_fields_visibility(event.value)
+        is_new_account = self.account_type_switch.value
+        self.update_fields_visibility(is_new_account)
+
+        # Update the dropdown visibility as well, if needed
+        self.update_dropdown_visibility()
+
+    def update_dropdown_visibility(self):
+        # Update visibility based on account type (switch state)
+        is_subscription = not self.account_type_switch.value
+
+        # Check if 'aws_account' exists in the dictionary before accessing it
+        if 'aws_account' in self.field_elements:
+            self.field_elements['aws_account'].visible = is_subscription
+
+        # Check if 'aws_region' exists in the dictionary before accessing it
+        if 'aws_region' in self.field_elements:
+            self.field_elements['aws_region'].visible = is_subscription
 
     def update_fields_visibility(self, is_new_account):
         # Hide or show fields based on whether it's a new account or subscription
         for field_key in self.new_account_fields:
             if field_key in self.field_elements:
-                # For new account fields, show them if is_new_account is True
                 self.field_elements[field_key].visible = is_new_account
 
         for field_key in self.subscription_fields:
             if field_key in self.field_elements:
-                # For subscription fields, show them if is_new_account is False
                 self.field_elements[field_key].visible = not is_new_account
 
-        # The 'aws_region' field is a special case as it should only be visible for subscriptions
-        if 'aws_region' in self.field_elements:
-            self.field_elements['aws_region'].visible = not is_new_account
+        # Update the visibility of aws_account and aws_region dropdowns
+        self.update_dropdown_visibility()
+
