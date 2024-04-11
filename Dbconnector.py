@@ -74,10 +74,10 @@ class Dbfunction():
 
     def query_os_type(self):
         # Placeholder for fetching OS types
-        query_stm = "SELECT DISTINCT os_type FROM your_os_type_table"
-        return self.execute_query(self.stsportal_config, query_stm, True, 1)
+        query_stm = f"select ot.OS_TYPE_NAME from os_type ot  where ot.OS_STATUS = 'ACTIVE'"
+        return self.execute_query(self.cptsiac_config, query_stm, True, 1)
 
     def query_instance_type(self):
         # Placeholder for fetching instance types
         query_stm = "SELECT DISTINCT instance_type FROM your_instance_type_table"
-        return self.execute_query(stsportal_config, query_stm, True, 1)
+        return self.execute_query(self.stsportal_config, query_stm, True, 1)
