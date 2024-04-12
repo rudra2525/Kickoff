@@ -25,7 +25,19 @@ ProjDetail = {
 }
 aws_details_form = AwsDetailsForm()
 network_details_form = NetworkDetailsForm()
-ui.label('Project Intake Form').classes('text-h3 py-4').style('text-align: center; width: 100%;')
+#image_path = 'images.png'
+with ui.row().style('background-color: #2196F3; padding: 20px; justify-content: space-between; width: 100%;'):
+    # Column for the logo
+    with ui.column().style('width: auto;'):
+        ui.image('').style('height: 50px;')  # Adjust the path and style as needed
+
+    # Column for the title, centered
+    with ui.column().style('flex-grow: 1; justify-content: center; display: flex;'):
+        ui.label('Project Intake Form').style('color: white; font-size: 20px; text-align: center;')
+
+    # Column to balance the layout
+    with ui.column().style('width: auto;'):
+        ui.label('').style('height: 50px;')
 setup_project_dropdown(jira, ui, aws_details_form)
 ProjecDetail(ProjDetail)
 
