@@ -113,7 +113,7 @@ class AwsDetailsForm:
         self.field_elements['instance_type'].show()
         # ... show all other fields related to subscription
 
-    
+
 
     def setup_aws_details_tab(self):
         self.account_type_switch = ui.switch('New Account', value=True, on_change=self.on_account_type_change)
