@@ -1,11 +1,11 @@
 from nicegui import ui
-#from aws_details_tab import setup_aws_details_tab
 from aws_details_tab import AwsDetailsForm
 from search_and_details import setup_project_dropdown, jira
 from NetworkTab import NetworkDetailsForm
 from ProjectDet import ProjecDetail
 import requests
 from website.demo import section_window
+from header import get_header_html
 
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 # Sample ProjDetail data
@@ -25,19 +25,22 @@ ProjDetail = {
 }
 aws_details_form = AwsDetailsForm()
 network_details_form = NetworkDetailsForm()
+header_html = get_header_html()
+ui.html(header_html)
 #image_path = 'images.png'
-with ui.row().style('background-color: #2196F3; padding: 20px; justify-content: space-between; width: 100%;'):
-    # Column for the logo
-    with ui.column().style('width: auto;'):
-        ui.image('').style('height: 50px;')  # Adjust the path and style as needed
+'''with ui.row().style('background-color: #2196F3; padding: 20px; justify-content: space-between; width: 100%;'):
+    with ui.column().style('width: auto; position: relative;'):
+        # Add a z-index to ensure the image is on top
+        ui.image('https://mms.businesswire.com/media/20230320005386/en/1742203/23/Epsilon_logo.jpg').style('height: 50px; position: relative; z-index: 1;')
 
     # Column for the title, centered
     with ui.column().style('flex-grow: 1; justify-content: center; display: flex;'):
-        ui.label('Project Intake Form').style('color: white; font-size: 20px; text-align: center;')
+        ui.label('Project Intake Form').style('color: white; font-size: 20px;')
 
     # Column to balance the layout
     with ui.column().style('width: auto;'):
-        ui.label('').style('height: 50px;')
+        ui.label('').style('height: 50px;')'''
+#ui.image('Epsilon_logo.png').style('height: 20px; position: relative; z-index: 1;')
 setup_project_dropdown(jira, ui, aws_details_form)
 ProjecDetail(ProjDetail)
 
@@ -66,7 +69,7 @@ with ui.splitter(value=10).classes('w-full h-full') as splitter:
                 #ui.label('AWS Account').classes('text-h4')
                 with section_window("AWS Account", classes='w-full'):
                     aws_details_form.setup_aws_details_tab()
-                    ui.button('Save Details', on_click=aws_details_form.update_form_data)
+                    #ui.button('Save Details', on_click=aws_details_form.update_form_data)
 
             with ui.tab_panel(network_info):
                 ui.label('Network Information').classes('text-h4')
