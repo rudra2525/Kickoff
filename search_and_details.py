@@ -3,6 +3,7 @@ from jira import JIRA
 import menu
 import urllib3
 from aws_details_tab import AwsDetailsForm
+from ProjectDet import ProjecDetail
 
 aws_details_form = AwsDetailsForm()
 
@@ -50,13 +51,31 @@ def setup_project_dropdown(jira, container, aws_details_form_instance):
         aws_details_form_instance.setup_aws_account_dropdown(client_code)
 
         # Update the text of the client code label to display the fetched client code
-        client_code_label.text = f"Client Code: {client_code}"
+        #client_code_label.text = f"Client Code: {client_code}"
+
+        proj_details = {
+            "summary": selected_issue.fields.summary,
+            "jirakey": selected_issue.key,
+            # You need to replace 'customfield_xxxx' with the actual field ID in your JIRA setup.
+            "Projecttype": getattr(selected_issue.fields, 'customfield_17322', 'Not Available'),
+            "platform": getattr(selected_issue.fields, 'customfield_xxxx', 'Not Available'),
+            "Location": getattr(selected_issue.fields, 'customfield_41320', 'Not Available'),
+            "ClientCode": getattr(selected_issue.fields, 'customfield_45567', 'Not Available'),
+            "Bustechowner": getattr(selected_issue.fields, 'customfield_55222', 'Not Available'),
+            "Techlead": getattr(selected_issue.fields, 'customfield_59620', 'Not Available'),
+            "DBAlead": getattr(selected_issue.fields, 'customfield_xxxx', 'Not Available'),
+            "eEnvironment": getattr(selected_issue.fields, 'customfield_xxxx', 'Not Available'),
+            "Objective": getattr(selected_issue.fields, 'customfield_xxxx', 'Not Available'),
+
+        }
+
+        ProjecDetail(proj_details)
 
     # Fetch the list of projects/issues to populate the dropdown options
     issueList = GetProjectList(jira)
     issue_options = [(issue['id'], f"{issue['id']} - {issue['summary']}") for issue in issueList]
     issue_dropdown = container.select(label='Search Project', options=issue_options, with_input=True, on_change=on_project_select).style('width: 256px;')
-    client_code_label = container.label('Client Code: Not selected')
-# Call the setup_project_dropdown function, providing the jira client and the target UI container
-# For example, if adding directly to the main UI, use:
-# setup_project_dropdown(jira, ui)
+    #client_code_label = container.label('Client Code: Not selected')
+
+
+
