@@ -1,236 +1,119 @@
-from nicegui import ui
-from Dbconnector import Dbfunction
+from nicegui import events, ui
+import myDbConnection
+import menu
+import time
 
-class AwsDetailsForm:
-    def __init__(self):
-        self.db = Dbfunction()
-        self.form_data = {}
-        self.initialize_fields()
+def setup_aws_details_tab(client_code=None):
+    #aws_account_container.clear()
+    #pClientCode = "STSX"
+    environment_type_options = myDbConnection.query_allowed_values('ENV_TYPE')
+    if client_code:
+        aws_account_options = myDbConnection.query_awsAccount(client_code)
+    else:
+        aws_account_options = []
+    #aws_account_options = myDbConnection.query_awsAccount(pClientCode)
+    aws_region_options = myDbConnection.query_awsRegion()
+    adGrprows = []
 
-        # Elements references will be stored here after setup
-        self.field_elements = {}
+    AdGrpTableCol = [
+        {'name': 'Environment_type', 'label': 'Environment Type', 'field': 'Environment_type', 'required': True, 'align': 'left', 'width': '20%', 'headerStyle': 'min-width: 25px'},
+        {'name': 'aws_account', 'label': 'AWS Account', 'field': 'aws_account', 'required': True, 'align': 'left', 'width': '20%', 'headerStyle': 'min-width: 25px'},
+        {'name': 'aws_region', 'label': 'AWS Region', 'field': 'aws_region', 'required': True, 'align': 'left', 'width': '20%', 'headerStyle': 'min-width: 25px'},
+    ]
 
-        self.new_account_fields = [
-            'outlook_distribution_list',
-            'dl_members',
-            'account_admin',
-            'cloud_health_users',
-            'cost_center',
-            'primary_contact',
-            'secondary_contact',
-            'technical_contact',
-            'client_ID',
-            'environment_type',
-            'gm_approval',
+    def deleteGrp(e: events.GenericEventArguments) -> None:
+        nonlocal adGrprows
+        adGrprows[:] = [row for row in adGrprows if row["id"] != e.args["id"]]
+        ui.notify(f"Delete {e.args['id']}")
+        aGrptable.update()
 
-            # ...add all other keys for new account fields
-        ]
+    def print_table_data():
+        print("Table Data:")
+        for row in adGrprows:
+            print(row)
 
-        self.subscription_fields = [
-            'aws_account',
-            'aws_region',
-            'os_type',
-            'instance_type',
-            # ...add all other keys for subscription fields
-        ]
 
-    def initialize_fields(self):
-        # Initialize all fields to None
-        self.outlook_distribution_list = None
-        self.account_type = None
-        self.dl_members = None
-        self.account_admin = None
-        self.cloud_health_users = None
-        self.cost_center = None
-        self.primary_contact = None
-        self.secondary_contact = None
-        self.technical_contact = None
-        self.client_ID = None
-        self.environment_type = None
-        self.gm_approval = None
-        # Initialize additional fields for subscription
-        self.aws_account = None
-        self.aws_region = None
-        self.os_type = None
-        self.instance_type = None
-
-    # Mock function to retrieve stored data for Subscriptions
-
-    def update_form_data(self, event=None):
-        # Implementation to update form_data based on the input fields
-        self.form_data['Outlook Distribution list'] = self.outlook_distribution_list.value
-        self.form_data['DL Members'] = self.dl_members.value
-        self.form_data['Account Admins'] = self.account_admin.value
-        self.form_data['Cloud Health Users'] = self.cloud_health_users.value
-        self.form_data['Accounting Cost Center'] = self.cost_center.value
-        self.form_data['Primary contact'] = self.primary_contact.value
-        self.form_data['Secondary contact'] = self.secondary_contact.value
-        self.form_data['Technical contact'] = self.technical_contact.value
-        self.form_data['Four Digit Client ID'] = self.client_ID.value
-        self.form_data['Environment Type'] = self.environment_type.value
-        self.form_data['GM Approval'] = self.gm_approval.value
-
-    def update_aws_details(self, event):
-        # Update form_data with the values from inputs
-        self.form_data['aws_details'] = {  # Collect all AWS details
-            'account_type': self.account_type.value,
-            # ... [other fields as needed]
+    def save_details():
+        data = {
+            'Outlook Distribution List': outlook_distribution_list.value,
+            'DL Members': dl_members.value,
+            'Account Admins': account_admin.value,
+            'Cloud Health Users': cloud_health_users.value,
+            'Primary contact': primary_contact.value,
+            'Secondary contact': secondary_contact.value,
+            'Technical contact': technical_contact.value,
+            'Digit Client ID': client_ID.value,
+            'Environment Type': environment_type.value,
+            'GM Approval': gm_approval.value
         }
+        print(data)
 
-    def on_account_type_change(self, event):
-        account_type = event.value
-        if account_type == 'New Account':
-            for field_key in self.new_account_fields:
-                self.field_elements[field_key].visible = True  # Show field
-            for field_key in self.subscription_fields:
-                self.field_elements[field_key].visible = False  # Hide field
-        elif account_type == 'Subscriptions':
-            for field_key in self.new_account_fields:
-                self.field_elements[field_key].visible = False  # Hide field
-            for field_key in self.subscription_fields:
-                self.field_elements[field_key].visible = True  # Show field
+    def switch_change(value: bool):
+        new_account_ui.visible = value
 
-    def show_new_account_fields(self):
-        # Show fields related to 'New Account'
-        self.field_elements['outlook_distribution_list'].show()
-        self.field_elements['dl_members'].show()
-        self.field_elements['account_admin'].show()
-        self.field_elements['cloud_health_users'].show()
-        self.field_elements['cost_center'].show()
-        self.field_elements['primary_contact'].show()
-        self.field_elements['secondary_contact'].show()
-        self.field_elements['technical_contact'].show()
-        self.field_elements['client_ID'].show()
-        self.field_elements['environment_type'].show()
-        self.field_elements['gm_approval'].show()
-        # ... show all other fields related to new account
+    with ui.card().classes('w-full'):
+      switch = ui.switch('New Account', value=False, on_change=switch_change)
+      with ui.column().bind_visibility_from(switch, 'value').classes("w-full"):
+            with ui.table(columns=AdGrpTableCol, rows=adGrprows).classes('w-full') as aGrptable:
+                aGrptable.add_slot(
+                    "body",
+                    r"""
+                    <q-tr :props="props">
+                        <q-td key="Environment_type" :props="props" class="w-8 ellipsis">
+                            {{ props.row.Environment_type }}
+                        </q-td>
+                        <q-td key="aws_account" :props="props" class="w-8 ellipsis">
+                            {{ props.row.aws_account }}
+                        </q-td>
+                        <q-td key="aws_region" :props="props" class="w-8 ellipsis">
+                            {{ props.row.aws_region }}
+                        </q-td>
+                        <q-td auto-width>
+                            <q-btn size="sm" color="warning" round dense icon="delete" :props="props"
+                                @click="() => $parent.$emit('delete', props.row)">
+                            </q-btn>
+                        </q-td>
+                    </q-tr>
+                    """,
+                )
+                with aGrptable.add_slot('bottom-row'):
+                    with aGrptable.row():
+                        with aGrptable.cell():
+                            u_env_type = ui.select(options=environment_type_options, with_input=True, value="", label='Environment Type').classes(f"w-full")
+                        with aGrptable.cell():
+                            u_aws_acc = menu.form_select(aws_account_options, 'AWS Accounts', "", "w-full")
+                        with aGrptable.cell():
+                            u_aws_reg = ui.select(options=aws_region_options, with_input=True, value="", label='AWS Region').classes(f"w-full")
+                        with aGrptable.cell():
+                            ui.button(on_click=lambda: (
+                                aGrptable.add_rows({'id': time.time(), 'Environment_type': u_env_type.value, 'aws_account': u_aws_acc.value, "aws_region": u_aws_reg.value}),
+                                u_env_type.set_value(None),
+                                u_aws_acc.set_value(None),
+                                u_aws_reg.set_value(None)
+                            ), icon='add')
 
-    def show_subscription_fields(self):
-        # Show fields related to 'Subscriptions'
-        self.field_elements['aws_account'].show()
-        self.field_elements['aws_region'].show()
-        self.field_elements['os_type'].show()
-        self.field_elements['instance_type'].show()
-        # ... show all other fields related to subscription
+                    aGrptable.on("delete", deleteGrp)
+            ui.button('Save', on_click=print_table_data, icon='save')
 
+      with ui.column().bind_visibility_from(switch, 'value', value=False).classes("w-full"):
+       new_account_ui = ui.card().bind_visibility_from(switch, 'value', value=False).classes('w-full')
 
+       with new_account_ui:
+           outlook_distribution_list = ui.input(label="Outlook Distribution List",
+                                                placeholder="Enter distribution list email").classes('w-full')
+           dl_members = ui.input(label="DL Members", placeholder="Enter DL Members").classes('w-full')
+           account_admin = ui.input(label="Account Admins", placeholder="Enter Account Admins").classes('w-full')
+           cloud_health_users = ui.input(label="Cloud Health Users", placeholder="Enter Cloud Health Users").classes(
+               'w-full')
+           primary_contact = ui.input(label="Primary contact", placeholder="Enter Primary contact").classes('w-full')
+           secondary_contact = ui.input(label="Secondary contact", placeholder="Enter Secondary contact").classes(
+               'w-full')
+           technical_contact = ui.input(label="Technical contact", placeholder="Enter Technical contact").classes(
+               'w-full')
+           client_ID = ui.input(label="Digit Client ID", placeholder="Enter Digit Client ID").classes('w-full')
+           environment_type = ui.input(label="Environment Type", placeholder="Enter Environment Type").classes('w-full')
+           gm_approval = ui.input(label="GM Approval", placeholder="Enter GM Approval").classes('w-full')
+           ui.button('Save New Account', on_click=save_details, icon='save')
 
-    def setup_aws_details_tab(self):
-        self.account_type_switch = ui.switch('New Account', value=True, on_change=self.on_account_type_change)
-        self.field_elements['aws_account'] = ui.select(label='AWS Account', options=[]).classes('w-60')
-        self.field_elements['aws_account'].visible = False
-
-        self.setup_aws_region_dropdown()
-        self.setup_os_type_dropdown()
-
-        # Update visibility based on initial switch state
-        self.update_dropdown_visibility()
-
-
-        # Setup all input fields and store their references
-        self.field_elements['outlook_distribution_list'] = ui.input(label='Outlook Distribution list').classes('pl-12 w-full')
-        self.field_elements['dl_members'] = ui.textarea(label='DL Members')
-        self.field_elements['account_admin'] = ui.textarea(label='Account Admins')
-        self.field_elements['cloud_health_users'] = ui.textarea(label='Cloud Health Users')
-        self.field_elements['cost_center'] = ui.textarea(label='Accounting Cost Center')
-        self.field_elements['primary_contact'] = ui.textarea(label='Primary contact')
-        self.field_elements['secondary_contact'] = ui.textarea(label='Secondary contact')
-        self.field_elements['technical_contact'] = ui.textarea(label='Technical contact')
-        self.field_elements['client_ID'] = ui.textarea(label='Four Digit Client ID')
-        self.field_elements['environment_type'] = ui.textarea(label='Environment Type')
-        self.field_elements['gm_approval'] = ui.textarea(label='GM Approval')
-        # ... setup and hide all other fields
-
-        # Additional fields for subscriptions
-        #self.field_elements['aws_account'] = ui.input(label='AWS Account')
-        #self.field_elements['aws_region'] = ui.input(label='AWS Region')
-        #self.field_elements['os_type'] = ui.input(label='OS Type')
-        self.field_elements['instance_type'] = ui.input(label='Instance Type')
-
-
-
-        for element in self.field_elements.values():
-            if hasattr(element, 'visible'):
-                element.visible = False
-
-        self.update_fields_visibility(self.account_type_switch.value)
-
-        ui.button('Save Details', on_click=self.update_aws_details)
-
-    def setup_aws_region_dropdown(self):
-        aws_regions = self.db.query_awsRegion()
-        if isinstance(aws_regions, dict):
-            # Convert the dictionary to a list of tuples and sort by region name
-            region_options = sorted(aws_regions.items(), key=lambda item: item[1])
-            self.field_elements['aws_region'] = ui.select(label='AWS Region', options=region_options).classes('w-60')
-        else:
-            print("Unexpected data structure for AWS regions")
-
-    def setup_aws_account_dropdown(self, client_code):
-        aws_accounts = self.db.query_awsAcc(client_code)
-        awsAccName = sorted({value for value in aws_accounts.values()})
-        account_options = [(acc_num, f"{acc_num} - {desc}") for acc_num, desc in aws_accounts.items()]
-
-        if 'aws_account' in self.field_elements:
-            # If it exists, just update its options
-            self.field_elements['aws_account'].options = account_options
-        else:
-            # If it doesn't exist, create the dropdown and add it to field_elements
-            self.field_elements['aws_account'] = ui.select(label='AWS Account', options=awsAccName).classes('w-60')
-
-            # Set the visibility based on the account type
-        self.field_elements['aws_account'].visible = not self.account_type_switch.value
-
-    def setup_os_type_dropdown(self):
-        os_types = self.db.query_os_type()
-        os_type_options = [(os_type['OS_TYPE_NAME']) for os_type in os_types]
-
-        if 'os_type' in self.field_elements:
-            # If the dropdown exists, update its options using OS type names only
-            self.field_elements['os_type'].options = os_type_options
-        else:
-            # If the dropdown doesn't exist, create it using OS type names only
-            self.field_elements['os_type'] = ui.select(label='OS Type', options=os_type_options).classes('w-60')
-
-        # Set the visibility based on the account type
-        self.field_elements['os_type'].visible = not self.account_type_switch.value
-
-    def on_account_type_change(self, event):
-        is_new_account = self.account_type_switch.value
-        self.update_fields_visibility(is_new_account)
-
-        # Update the dropdown visibility as well, if needed
-        self.update_dropdown_visibility()
-
-    def update_dropdown_visibility(self):
-        # The switch is 'off' when the value is False, hence dropdowns should be visible
-        should_be_visible = not self.account_type_switch.value
-
-        # Set the visibility of the dropdowns based on the switch state
-
-        if 'aws_account' in self.field_elements:
-            # Make sure the 'os_type' dropdown is visible if the switch is off
-            self.field_elements['aws_account'].visible = should_be_visible
-
-        if 'aws_region' in self.field_elements:
-            # Make sure the 'os_type' dropdown is visible if the switch is off
-            self.field_elements['aws_region'].visible = should_be_visible
-
-        if 'os_type' in self.field_elements:
-            # Make sure the 'os_type' dropdown is visible if the switch is off
-            self.field_elements['os_type'].visible = should_be_visible
-
-
-    def update_fields_visibility(self, is_new_account):
-        # Hide or show fields based on whether it's a new account or subscription
-        for field_key in self.new_account_fields:
-            if field_key in self.field_elements:
-                self.field_elements[field_key].visible = is_new_account
-
-        for field_key in self.subscription_fields:
-            if field_key in self.field_elements:
-                self.field_elements[field_key].visible = not is_new_account
-
-        # Update the visibility of aws_account and aws_region dropdowns
-        self.update_dropdown_visibility()
-
+#setup_aws_details_tab()
+#ui.run()
