@@ -4,9 +4,8 @@ import menu
 import time
 
 def setup_aws_details_tab(client_code=None):
-    #aws_account_container.clear()
-    #pClientCode = "STSX"
     environment_type_options = myDbConnection.query_allowed_values('ENV_TYPE')
+    print(client_code)
     if client_code:
         aws_account_options = myDbConnection.query_awsAccount(client_code)
     else:
@@ -52,7 +51,9 @@ def setup_aws_details_tab(client_code=None):
         new_account_ui.visible = value
 
     with ui.card().classes('w-full'):
-      switch = ui.switch('New Account', value=False, on_change=switch_change)
+      switch = ui.switch('New Account', value=False, on_change=lambda value: new_account_ui.set_visibility(value))
+      new_account_ui = ui.card().classes('w-full')
+      new_account_ui.visible = switch.value
       with ui.column().bind_visibility_from(switch, 'value').classes("w-full"):
             with ui.table(columns=AdGrpTableCol, rows=adGrprows).classes('w-full') as aGrptable:
                 aGrptable.add_slot(
@@ -79,11 +80,11 @@ def setup_aws_details_tab(client_code=None):
                 with aGrptable.add_slot('bottom-row'):
                     with aGrptable.row():
                         with aGrptable.cell():
-                            u_env_type = ui.select(options=environment_type_options, with_input=True, value="", label='Environment Type').classes(f"w-full")
+                            u_env_type = ui.select(options=environment_type_options, with_input=True, value="", label='Environment Type').classes(f"w-full").props('rounded outlined dense')
                         with aGrptable.cell():
-                            u_aws_acc = menu.form_select(aws_account_options, 'AWS Accounts', "", "w-full")
+                            u_aws_acc = menu.form_select(aws_account_options, 'AWS Accounts', "", "w-full").props('rounded outlined dense')
                         with aGrptable.cell():
-                            u_aws_reg = ui.select(options=aws_region_options, with_input=True, value="", label='AWS Region').classes(f"w-full")
+                            u_aws_reg = ui.select(options=aws_region_options, with_input=True, value="", label='AWS Region').classes(f"w-full").props('rounded outlined dense')
                         with aGrptable.cell():
                             ui.button(on_click=lambda: (
                                 aGrptable.add_rows({'id': time.time(), 'Environment_type': u_env_type.value, 'aws_account': u_aws_acc.value, "aws_region": u_aws_reg.value}),
@@ -98,22 +99,32 @@ def setup_aws_details_tab(client_code=None):
       with ui.column().bind_visibility_from(switch, 'value', value=False).classes("w-full"):
        new_account_ui = ui.card().bind_visibility_from(switch, 'value', value=False).classes('w-full')
 
+       def clear_input(input_field):
+           input_field.set_value(None)
        with new_account_ui:
-           outlook_distribution_list = ui.input(label="Outlook Distribution List",
-                                                placeholder="Enter distribution list email").classes('w-full')
-           dl_members = ui.input(label="DL Members", placeholder="Enter DL Members").classes('w-full')
-           account_admin = ui.input(label="Account Admins", placeholder="Enter Account Admins").classes('w-full')
-           cloud_health_users = ui.input(label="Cloud Health Users", placeholder="Enter Cloud Health Users").classes(
-               'w-full')
-           primary_contact = ui.input(label="Primary contact", placeholder="Enter Primary contact").classes('w-full')
-           secondary_contact = ui.input(label="Secondary contact", placeholder="Enter Secondary contact").classes(
-               'w-full')
-           technical_contact = ui.input(label="Technical contact", placeholder="Enter Technical contact").classes(
-               'w-full')
-           client_ID = ui.input(label="Digit Client ID", placeholder="Enter Digit Client ID").classes('w-full')
-           environment_type = ui.input(label="Environment Type", placeholder="Enter Environment Type").classes('w-full')
-           gm_approval = ui.input(label="GM Approval", placeholder="Enter GM Approval").classes('w-full')
-           ui.button('Save New Account', on_click=save_details, icon='save')
+           def input_with_delete(label, placeholder):
+               with ui.input(placeholder=placeholder).classes('w-full').props('rounded outlined dense') as input_field:
+                   delete_button = ui.button(color='469DF9', on_click=lambda: input_field.set_value(None), icon='close').props('flat dense').bind_visibility_from(input_field, 'value')
+               return input_field, delete_button
+
+           outlook_distribution_list, outlook_delete_button = input_with_delete("Outlook Distribution List","Enter distribution list email")
+           dl_members, dl_members_button = input_with_delete("DL Members", "Enter DL Members")
+           account_admin, account_admin_button = input_with_delete("Account Admins", "Enter Account Admins")
+           cloud_health_users, cloud_health_users_button = input_with_delete("Cloud Health Users","Enter Cloud Health Users")
+           primary_contact, primary_contact_button = input_with_delete("Primary contact", "Enter Primary contact")
+           secondary_contact, secondary_contact_button = input_with_delete("Secondary contact","Enter Secondary contact")
+           technical_contact, technical_contact_button = input_with_delete("Technical contact","Enter Technical contact")
+
+           def on_validate(value):
+               if len(value) != 4:
+                   return 'ID must be 4 Digit long'
+           client_ID = ui.input(label="Client ID", placeholder="Enter 4 Digit Client ID", validation=on_validate).classes('w-full').props('rounded outlined dense')
+
+           environment_type = ui.select(['Development', 'UAT', 'Production', 'QA'], multiple=True, value=[], label="Environment Type").classes('w-full').props('use-chips''rounded outlined dense')
+
+           gm_approval, gm_approval_button = input_with_delete("GM Approval", "Enter GM Approval")
+
+           save_button = ui.button('Save New Account', on_click=save_details, icon='save')
 
 #setup_aws_details_tab()
 #ui.run()
