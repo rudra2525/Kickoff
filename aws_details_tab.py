@@ -2,35 +2,96 @@ from nicegui import events, ui
 import myDbConnection
 import menu
 import time
+from website.demo import bash_window
+import asyncio
 
 def setup_aws_details_tab(client_code=None):
-    environment_type_options = myDbConnection.query_allowed_values('ENV_TYPE')
-    print(client_code)
-    if client_code:
-        aws_account_options = myDbConnection.query_awsAccount(client_code)
-    else:
-        aws_account_options = []
-    #aws_account_options = myDbConnection.query_awsAccount(pClientCode)
-    aws_region_options = myDbConnection.query_awsRegion()
-    adGrprows = []
+    environment_type_options = myDbConnection.query_allowed_values('ENV_TYPE') or []
+    clint = 'STSX'
+    aws_account_options = myDbConnection.query_awsAccount(client_code or clint) or []
+    aws_region_options = myDbConnection.query_awsRegion() or []
 
-    AdGrpTableCol = [
-        {'name': 'Environment_type', 'label': 'Environment Type', 'field': 'Environment_type', 'required': True, 'align': 'left', 'width': '20%', 'headerStyle': 'min-width: 25px'},
-        {'name': 'aws_account', 'label': 'AWS Account', 'field': 'aws_account', 'required': True, 'align': 'left', 'width': '20%', 'headerStyle': 'min-width: 25px'},
-        {'name': 'aws_region', 'label': 'AWS Region', 'field': 'aws_region', 'required': True, 'align': 'left', 'width': '20%', 'headerStyle': 'min-width: 25px'},
-    ]
+    aws_details_row = []
 
-    def deleteGrp(e: events.GenericEventArguments) -> None:
-        nonlocal adGrprows
-        adGrprows[:] = [row for row in adGrprows if row["id"] != e.args["id"]]
-        ui.notify(f"Delete {e.args['id']}")
-        aGrptable.update()
+    def oldAWS():
+        def save_aws_details():
+            aws_details = {
+                'id': time.time(),
+                'environment_type': env_type_select.value,
+                'aws_acc': aws_acc_select.value,
+                'aws_region': aws_region_select.value
+            }
+            aws_details_row.append(aws_details)
+            awsDetailsTable.options['rowData'] = aws_details_row
+            awsDetailsTable.update()
+            awsDetailsDialog.close()
 
-    def print_table_data():
-        print("Table Data:")
-        for row in adGrprows:
-            print(row)
+        async def edit_aws_details():
+            selected_row = await awsDetailsTable.get_selected_row()
+            if selected_row:
+                for i, row in enumerate(aws_details_row):
+                    if row['id'] == selected_row['id']:
+                        aws_details_row[i] = {
+                            'id': row['id'],
+                            'environment_type': env_type_select.value,
+                            'aws_acc': aws_acc_select.value,
+                            'aws_region': aws_region_select.value
+                        }
+                        break
+                awsDetailsTable.options['rowData'] = aws_details_row
+                awsDetailsTable.update()
+                awsDetailsDialog.close()
+            else:
+                ui.notify("No row selected for editing", type='warning')
 
+        async def remove_aws_details():
+            selected_row = await awsDetailsTable.get_selected_row()
+            if selected_row:
+                aws_details_row[:] = [row for row in aws_details_row if row['id'] != selected_row['id']]
+                awsDetailsTable.options['rowData'] = aws_details_row
+                awsDetailsTable.update()
+                ui.notify("Row removed successfully", type='positive')
+            else:
+                ui.notify("No row selected for removal", type='warning')
+
+        def save_all_details():
+            print("Server Details:")
+            for row in aws_details_row:
+                print(row)
+            ui.notify("Data Saved", type='positive')
+
+        with ui.dialog() as awsDetailsDialog:
+            with bash_window("Add Server Detail", classes='w-full'):
+                with ui.grid(columns=2).classes('gap-4'):
+                    env_type_select = ui.select(options=environment_type_options, label='Environment Type').classes('pl-6 w-5/6')
+                    aws_acc_select = ui.select(options=aws_account_options, with_input=True, value="", label='Aws Account').classes('pl-6 w-5/6')
+                    aws_region_select = ui.select(options=aws_region_options, label='Server Prefix').classes('pl-6 w-5/6')
+
+                with ui.row().classes('self-center place-items-center'):
+                    ui.button('Add', on_click=save_aws_details, icon='add').classes('m-2')
+                    ui.button('Close', on_click=awsDetailsDialog.close, icon='close').classes('m-2')
+
+        aws_details_columns = [
+            {'headerName': '', 'checkboxSelection': True, 'width': 50},  # Add checkbox selection
+            {'headerName': 'Environment Type', 'field': 'environment_type'},
+            {'headerName': 'Aws Account', 'field': 'aws_acc'},
+            {'headerName': 'Aws Region', 'field': 'aws_region'}
+        ]
+
+        with ui.card().classes('w-full'):
+            with ui.row().classes('w-full'):
+                awsDetailsTable = ui.aggrid({
+                    'defaultColDef': {'flex': 1},
+                    'columnDefs': aws_details_columns,
+                    'rowData': aws_details_row,
+                    'rowSelection': 'single'
+                }).classes('w-full')
+
+            with ui.row().classes('self-center place-items-center'):
+                ui.button('Add', on_click=awsDetailsDialog.open, icon='add').classes('m-2')
+                ui.button('Edit', on_click=lambda: asyncio.create_task(edit_aws_details()), icon='edit').classes('m-2')
+                ui.button('Delete', on_click=lambda: asyncio.create_task(remove_aws_details()), icon='delete').classes('m-2')
+                ui.button('Save', on_click=save_all_details, icon='save').classes('m-2')
 
     def save_details():
         data = {
@@ -47,84 +108,31 @@ def setup_aws_details_tab(client_code=None):
         }
         print(data)
 
-    def switch_change(value: bool):
-        new_account_ui.visible = value
+    switch = ui.switch("New AWS Account", value=False)
 
-    with ui.card().classes('w-full'):
-      switch = ui.switch('New Account', value=False, on_change=lambda value: new_account_ui.set_visibility(value))
-      new_account_ui = ui.card().classes('w-full')
-      new_account_ui.visible = switch.value
-      with ui.column().bind_visibility_from(switch, 'value').classes("w-full"):
-            with ui.table(columns=AdGrpTableCol, rows=adGrprows).classes('w-full') as aGrptable:
-                aGrptable.add_slot(
-                    "body",
-                    r"""
-                    <q-tr :props="props">
-                        <q-td key="Environment_type" :props="props" class="w-8 ellipsis">
-                            {{ props.row.Environment_type }}
-                        </q-td>
-                        <q-td key="aws_account" :props="props" class="w-8 ellipsis">
-                            {{ props.row.aws_account }}
-                        </q-td>
-                        <q-td key="aws_region" :props="props" class="w-8 ellipsis">
-                            {{ props.row.aws_region }}
-                        </q-td>
-                        <q-td auto-width>
-                            <q-btn size="sm" color="warning" round dense icon="delete" :props="props"
-                                @click="() => $parent.$emit('delete', props.row)">
-                            </q-btn>
-                        </q-td>
-                    </q-tr>
-                    """,
-                )
-                with aGrptable.add_slot('bottom-row'):
-                    with aGrptable.row():
-                        with aGrptable.cell():
-                            u_env_type = ui.select(options=environment_type_options, with_input=True, value="", label='Environment Type').classes(f"w-full").props('rounded outlined dense')
-                        with aGrptable.cell():
-                            u_aws_acc = menu.form_select(aws_account_options, 'AWS Accounts', "", "w-full").props('rounded outlined dense')
-                        with aGrptable.cell():
-                            u_aws_reg = ui.select(options=aws_region_options, with_input=True, value="", label='AWS Region').classes(f"w-full").props('rounded outlined dense')
-                        with aGrptable.cell():
-                            ui.button(on_click=lambda: (
-                                aGrptable.add_rows({'id': time.time(), 'Environment_type': u_env_type.value, 'aws_account': u_aws_acc.value, "aws_region": u_aws_reg.value}),
-                                u_env_type.set_value(None),
-                                u_aws_acc.set_value(None),
-                                u_aws_reg.set_value(None)
-                            ), icon='add')
+    with ui.column().bind_visibility_from(switch, 'value').classes('w-full'):
+        def input_with_delete(label, placeholder):
+            with ui.input(placeholder=placeholder).classes('w-full').props('rounded outlined dense') as input_field:
+                delete_button = ui.button(color='469DF9', on_click=lambda: input_field.set_value(None), icon='close').props('flat dense').bind_visibility_from(input_field, 'value')
+            return input_field, delete_button
 
-                    aGrptable.on("delete", deleteGrp)
-            ui.button('Save', on_click=print_table_data, icon='save')
+        outlook_distribution_list, outlook_delete_button = input_with_delete("Outlook Distribution List", "Enter distribution list email")
+        dl_members, dl_members_button = input_with_delete("DL Members", "Enter DL Members")
+        account_admin, account_admin_button = input_with_delete("Account Admins", "Enter Account Admins")
+        cloud_health_users, cloud_health_users_button = input_with_delete("Cloud Health Users", "Enter Cloud Health Users")
+        primary_contact, primary_contact_button = input_with_delete("Primary contact", "Enter Primary contact")
+        secondary_contact, secondary_contact_button = input_with_delete("Secondary contact", "Enter Secondary contact")
+        technical_contact, technical_contact_button = input_with_delete("Technical contact", "Enter Technical contact")
 
-      with ui.column().bind_visibility_from(switch, 'value', value=False).classes("w-full"):
-       new_account_ui = ui.card().bind_visibility_from(switch, 'value', value=False).classes('w-full')
+        def on_validate(value):
+            if len(value) != 4:
+                return 'ID must be 4 Digit long'
 
-       def clear_input(input_field):
-           input_field.set_value(None)
-       with new_account_ui:
-           def input_with_delete(label, placeholder):
-               with ui.input(placeholder=placeholder).classes('w-full').props('rounded outlined dense') as input_field:
-                   delete_button = ui.button(color='469DF9', on_click=lambda: input_field.set_value(None), icon='close').props('flat dense').bind_visibility_from(input_field, 'value')
-               return input_field, delete_button
+        client_ID = ui.input(label="Client ID", placeholder="Enter 4 Digit Client ID", validation=on_validate).classes('w-full').props('rounded outlined dense')
+        environment_type = ui.select(['Development', 'UAT', 'Production', 'QA'], multiple=True, value=[], label="Environment Type").classes('w-full').props('use-chips rounded outlined dense')
+        gm_approval, gm_approval_button = input_with_delete("GM Approval", "Enter GM Approval")
 
-           outlook_distribution_list, outlook_delete_button = input_with_delete("Outlook Distribution List","Enter distribution list email")
-           dl_members, dl_members_button = input_with_delete("DL Members", "Enter DL Members")
-           account_admin, account_admin_button = input_with_delete("Account Admins", "Enter Account Admins")
-           cloud_health_users, cloud_health_users_button = input_with_delete("Cloud Health Users","Enter Cloud Health Users")
-           primary_contact, primary_contact_button = input_with_delete("Primary contact", "Enter Primary contact")
-           secondary_contact, secondary_contact_button = input_with_delete("Secondary contact","Enter Secondary contact")
-           technical_contact, technical_contact_button = input_with_delete("Technical contact","Enter Technical contact")
+        save_button = ui.button('Save New Account', on_click=save_details, icon='save')
 
-           def on_validate(value):
-               if len(value) != 4:
-                   return 'ID must be 4 Digit long'
-           client_ID = ui.input(label="Client ID", placeholder="Enter 4 Digit Client ID", validation=on_validate).classes('w-full').props('rounded outlined dense')
-
-           environment_type = ui.select(['Development', 'UAT', 'Production', 'QA'], multiple=True, value=[], label="Environment Type").classes('w-full').props('use-chips''rounded outlined dense')
-
-           gm_approval, gm_approval_button = input_with_delete("GM Approval", "Enter GM Approval")
-
-           save_button = ui.button('Save New Account', on_click=save_details, icon='save')
-
-#setup_aws_details_tab()
-#ui.run()
+    with ui.column().bind_visibility_from(switch, 'value', value=False).classes('w-full'):
+        oldAWS()
