@@ -5,7 +5,7 @@ import time
 from website.demo import bash_window
 import asyncio
 
-def setup_aws_details_tab(client_code=None):
+def setup_aws_details_tab(client_code=None, shared_state=None):
     environment_type_options = myDbConnection.query_allowed_values('ENV_TYPE') or []
     clint = 'STSX'
     aws_account_options = myDbConnection.query_awsAccount(client_code or clint) or []
@@ -25,6 +25,14 @@ def setup_aws_details_tab(client_code=None):
             awsDetailsTable.options['rowData'] = aws_details_row
             awsDetailsTable.update()
             awsDetailsDialog.close()
+
+            # Update shared state
+            if shared_state:
+                shared_state['aws_account'] = aws_acc_select.value
+                shared_state['environment'] = env_type_select.value
+                shared_state['region'] = aws_region_select.value
+                if shared_state.get('update_network_tab'):
+                    shared_state['update_network_tab']()
 
         async def edit_aws_details():
             selected_row = await awsDetailsTable.get_selected_row()
