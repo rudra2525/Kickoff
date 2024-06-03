@@ -34,15 +34,21 @@ def ProjIntake(client: Client):
                   ProjInfo = menu.getJiraProjInfo(jiraKey)
                   client.content.clear()
                   clientCode  = ProjInfo['ClientCode']
+                  shared_state = {
+                      'aws_account': '',
+                      'environment': '',
+                      'region': '',
+                      'update_network_tab': None  # This will be set by NetworkTab
+                  }
                   ProjectIntake.ProjectIntake(ProjInfo,tabs,aws_details,network_info)
                   with ui.tab_panels(tabs, value=aws_details).props('vertical').classes('w-full h-full'):
                       with ui.tab_panel(aws_details):
                           with section_window("AWS Account", classes='w-full'):
                               if clientCode:
-                                 setup_aws_details_tab(clientCode)
+                                 setup_aws_details_tab(clientCode, shared_state)
                       with ui.tab_panel(network_info):
                           with section_window("Network Information", classes='w-full'):
-                              NetworkTab.network_kickoff(ProjInfo)
+                              NetworkTab.network_kickoff(ProjInfo, shared_state)
                       with ui.tab_panel(server_details):
                           with section_window("Server Details ", classes='w-full'):
                                   setup_server_details(on_saverow=callable)
