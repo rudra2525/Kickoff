@@ -5,34 +5,40 @@ import time
 from website.demo import bash_window
 import asyncio
 
+def save_aws_details_to_state(env_type, aws_acc, aws_region, shared_state):
+    aws_details = {
+        'id': time.time(),
+        'environment_type': env_type,
+        'aws_acc': aws_acc,
+        'aws_region': aws_region
+    }
+    if 'aws_details' not in shared_state:
+        shared_state['aws_details'] = []
+    shared_state['aws_details'].append(aws_details)
+    print("AWS Details Saved:", shared_state['aws_details'])  # Debugging
+    if shared_state.get('update_aws_details'):
+        shared_state['update_aws_details']()
+
 def setup_aws_details_tab(client_code=None, shared_state=None):
     environment_type_options = myDbConnection.query_allowed_values('ENV_TYPE') or []
-    clint = 'STSX'
-    aws_account_options = myDbConnection.query_awsAccount(client_code or clint) or []
+    client_code = client_code or 'STSX'
+    aws_account_options = myDbConnection.query_awsAccount(client_code) or []
     aws_region_options = myDbConnection.query_awsRegion() or []
 
     aws_details_row = []
 
     def oldAWS():
         def save_aws_details():
-            aws_details = {
+            save_aws_details_to_state(env_type_select.value, aws_acc_select.value, aws_region_select.value, shared_state)
+            aws_details_row.append({
                 'id': time.time(),
                 'environment_type': env_type_select.value,
                 'aws_acc': aws_acc_select.value,
                 'aws_region': aws_region_select.value
-            }
-            aws_details_row.append(aws_details)
+            })
             awsDetailsTable.options['rowData'] = aws_details_row
             awsDetailsTable.update()
             awsDetailsDialog.close()
-
-            # Update shared state
-            if shared_state:
-                shared_state['aws_account'] = aws_acc_select.value
-                shared_state['environment'] = env_type_select.value
-                shared_state['region'] = aws_region_select.value
-                if shared_state.get('update_network_tab'):
-                    shared_state['update_network_tab']()
 
         async def edit_aws_details():
             selected_row = await awsDetailsTable.get_selected_row()
@@ -73,7 +79,7 @@ def setup_aws_details_tab(client_code=None, shared_state=None):
                 with ui.grid(columns=2).classes('gap-4'):
                     env_type_select = ui.select(options=environment_type_options, label='Environment Type').classes('pl-6 w-5/6')
                     aws_acc_select = ui.select(options=aws_account_options, with_input=True, value="", label='Aws Account').classes('pl-6 w-5/6')
-                    aws_region_select = ui.select(options=aws_region_options, label='Server Prefix').classes('pl-6 w-5/6')
+                    aws_region_select = ui.select(options=aws_region_options, label='AWS Region').classes('pl-6 w-5/6')
 
                 with ui.row().classes('self-center place-items-center'):
                     ui.button('Add', on_click=save_aws_details, icon='add').classes('m-2')
