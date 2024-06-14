@@ -5,19 +5,6 @@ import time
 from website.demo import bash_window
 import asyncio
 
-def save_aws_details_to_state(env_type, aws_acc, aws_region, shared_state):
-    aws_details = {
-        'id': time.time(),
-        'environment_type': env_type,
-        'aws_acc': aws_acc,
-        'aws_region': aws_region
-    }
-    if 'aws_details' not in shared_state:
-        shared_state['aws_details'] = []
-    shared_state['aws_details'].append(aws_details)
-    print("AWS Details Saved:", shared_state['aws_details'])  # Debugging
-    if shared_state.get('update_aws_details'):
-        shared_state['update_aws_details']()
 
 def setup_aws_details_tab(client_code=None, shared_state=None):
     environment_type_options = myDbConnection.query_allowed_values('ENV_TYPE') or []
@@ -29,7 +16,6 @@ def setup_aws_details_tab(client_code=None, shared_state=None):
 
     def oldAWS():
         def save_aws_details():
-            save_aws_details_to_state(env_type_select.value, aws_acc_select.value, aws_region_select.value, shared_state)
             aws_details_row.append({
                 'id': time.time(),
                 'environment_type': env_type_select.value,
