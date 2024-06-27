@@ -1,27 +1,32 @@
-from nicegui import events, ui
+from nicegui import events, ui, app
 import myDbConnection
 import menu
 import time
 from website.demo import bash_window
 import asyncio
+import json
 
 
-def setup_aws_details_tab(client_code=None, shared_state=None):
+def setup_aws_details_tab(client_code=None):
     environment_type_options = myDbConnection.query_allowed_values('ENV_TYPE') or []
     client_code = client_code or 'STSX'
     aws_account_options = myDbConnection.query_awsAccount(client_code) or []
     aws_region_options = myDbConnection.query_awsRegion() or []
 
-    aws_details_row = []
+    aws_details_row = app.storage.aws_details
+
+    
 
     def oldAWS():
         def save_aws_details():
-            aws_details_row.append({
+            new_detail = {
                 'id': time.time(),
                 'environment_type': env_type_select.value,
                 'aws_acc': aws_acc_select.value,
                 'aws_region': aws_region_select.value
-            })
+            }
+            aws_details_row.append(new_detail)
+            app.storage.aws_details = aws_details_row
             awsDetailsTable.options['rowData'] = aws_details_row
             awsDetailsTable.update()
             awsDetailsDialog.close()
@@ -38,6 +43,7 @@ def setup_aws_details_tab(client_code=None, shared_state=None):
                             'aws_region': aws_region_select.value
                         }
                         break
+                app.storage.aws_details = aws_details_row
                 awsDetailsTable.options['rowData'] = aws_details_row
                 awsDetailsTable.update()
                 awsDetailsDialog.close()
@@ -48,6 +54,7 @@ def setup_aws_details_tab(client_code=None, shared_state=None):
             selected_row = await awsDetailsTable.get_selected_row()
             if selected_row:
                 aws_details_row[:] = [row for row in aws_details_row if row['id'] != selected_row['id']]
+                app.storage.aws_details = aws_details_row
                 awsDetailsTable.options['rowData'] = aws_details_row
                 awsDetailsTable.update()
                 ui.notify("Row removed successfully", type='positive')
@@ -55,7 +62,7 @@ def setup_aws_details_tab(client_code=None, shared_state=None):
                 ui.notify("No row selected for removal", type='warning')
 
         def save_all_details():
-            print("Server Details:")
+            print("AWS Details:")
             for row in aws_details_row:
                 print(row)
             ui.notify("Data Saved", type='positive')
@@ -95,7 +102,7 @@ def setup_aws_details_tab(client_code=None, shared_state=None):
 
     def save_details():
         data = {
-            'Outlook Distribution List': outlook_distribution_list.value,
+            "Outlook Distribution List": outlook_distribution_list.value,
             'DL Members': dl_members.value,
             'Account Admins': account_admin.value,
             'Cloud Health Users': cloud_health_users.value,
@@ -104,9 +111,18 @@ def setup_aws_details_tab(client_code=None, shared_state=None):
             'Technical contact': technical_contact.value,
             'Digit Client ID': client_ID.value,
             'Environment Type': environment_type.value,
+            'AWS Region': region.value,
             'GM Approval': gm_approval.value
         }
-        print(data)
+
+        file_name = 'NewAWS.json'
+        with open(file_name, 'w') as json_file:
+            json.dump(data, json_file, indent=4)
+
+        with open(file_name, 'r') as json_file:
+            aws_acc_attr_content = json_file.read()
+
+        print(f"Data has been saved to {file_name}")
 
     switch = ui.switch("New AWS Account", value=False)
 
@@ -130,6 +146,7 @@ def setup_aws_details_tab(client_code=None, shared_state=None):
 
         client_ID = ui.input(label="Client ID", placeholder="Enter 4 Digit Client ID", validation=on_validate).classes('w-full').props('rounded outlined dense')
         environment_type = ui.select(['Development', 'UAT', 'Production', 'QA'], multiple=True, value=[], label="Environment Type").classes('w-full').props('use-chips rounded outlined dense')
+        region = ui.select(options=aws_region_options, label='AWS Region').classes('w-full').props('use-chips rounded outlined dense')
         gm_approval, gm_approval_button = input_with_delete("GM Approval", "Enter GM Approval")
 
         save_button = ui.button('Save New Account', on_click=save_details, icon='save')
