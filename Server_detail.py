@@ -1,79 +1,31 @@
-import asyncio
-from nicegui import events, ui
+from nicegui import app, ui, client
+import server_detailsDlg
+from website.demo import section_window
 import myDbConnection
 import menu
-import time
-from website.demo import bash_window
 
-def setup_server_details(on_saverow: callable, environment_type_options: list, shared_state: dict):
-    # Fetch data from database
-    Os_type_option = myDbConnection.query_os_type()
-    Instance_type_option = myDbConnection.query_allowed_values('AWS_INSTANCE')
-    server_details_rows = shared_state.get('server_details', [])
-    aws_details_rows = shared_state.get('aws_details', [])
 
-    def save_server_details():
-        server_details = {
-            'id': time.time(),
-            'environment': env_select.value,
-            'Os_type': os_type_select.value,
-            'instance_type': instance_type_select.value,
-            'server_prefix': server_prefix_input.value,
-            'Server_sequence_number': server_seq_num_input.value,
-            'Quantity': quantity_input.value,
-            'Subnet_information': subnet_info_input.value
-        }
-        server_details_rows.append(server_details)
-        serverDetailsTable.options['rowData'] = server_details_rows
-        serverDetailsTable.update()
-        serverDetailsDialog.close()
-        shared_state['server_details'] = server_details_rows
-        print("Server Details Updated:", shared_state['server_details'])  # Debugging
-
-    async def edit_server_details():
-        selected_row = await serverDetailsTable.get_selected_row()
-        if selected_row:
-            for i, row in enumerate(server_details_rows):
-                if row['id'] == selected_row['id']:
-                    server_details_rows[i] = {
-                        'id': row['id'],
-                        'environment': env_select.value,
-                        'Os_type': os_type_select.value,
-                        'instance_type': instance_type_select.value,
-                        'server_prefix': server_prefix_input.value,
-                        'Server_sequence_number': server_seq_num_input.value,
-                        'Quantity': quantity_input.value,
-                        'Subnet_information': subnet_info_input.value
-                    }
-                    break
-            serverDetailsTable.options['rowData'] = server_details_rows
-            serverDetailsTable.update()
-            serverDetailsDialog.close()
-        else:
-            ui.notify("No row selected for editing", type='warning')
-
-    async def remove_server_details():
-        selected_row = await serverDetailsTable.get_selected_row()
-        if selected_row:
-            server_details_rows[:] = [row for row in server_details_rows if row['id'] != selected_row['id']]
-            serverDetailsTable.options['rowData'] = server_details_rows
-            serverDetailsTable.update()
-            ui.notify("Row removed successfully", type='positive')
-        else:
-            ui.notify("No row selected for removal", type='warning')
-
-    def save_all_details():
-        print("Server Details:")
-        for row in server_details_rows:
-            print(row)
-        ui.notify("Data Saved", type='positive')
-
+def setup_serverDetail(ProjDetail):
+    global gEnv_Name
+    gEnv_Name = ""
+    aws_details_rows = app.storage.aws_details
     aws_details_columns = [
         {'headerName': '', 'checkboxSelection': True, 'width': 50},
         {'headerName': 'Environment Type', 'field': 'environment_type'},
         {'headerName': 'Aws Account', 'field': 'aws_acc'},
         {'headerName': 'Aws Region', 'field': 'aws_region'}
     ]
+
+    with section_window("AWS Details", classes='w-full'):
+        with ui.row().classes("w-full"):
+            with ui.card().classes('w-full'):
+                with ui.row().classes('w-full'):
+                    awsDetailsTable = ui.aggrid({
+                        'defaultColDef': {'flex': 1},
+                        'columnDefs': aws_details_columns,
+                        'rowData': aws_details_rows,
+                        'rowSelection': 'single'
+                    }).classes('w-full')
 
     server_details_columns = [
         {'headerName': '', 'checkboxSelection': True, 'width': 50},
@@ -86,41 +38,60 @@ def setup_server_details(on_saverow: callable, environment_type_options: list, s
         {'headerName': 'Subnet Information', 'field': 'Subnet_information'}
     ]
 
-    def update_aws_details_table():
-        awsDetailsTable.options['rowData'] = shared_state.get('aws_details', [])
-        awsDetailsTable.update()
+    server_details_rows = app.storage.server_details
 
-    async def open_server_details_dialog():
-        selected_aws_detail = await awsDetailsTable.get_selected_row()
-        if selected_aws_detail:
-            env_select.set_value(selected_aws_detail['environment_type'])
-            serverDetailsDialog.open()
+    def add_serverDetail(SeverDet):
+        server_details_rows.extend(SeverDet)
+        app.storage.server_details = server_details_rows
+        serverDetailsTable.options['rowData'] = sorted(server_details_rows)
+        ui.notify("Server Detail Added Successfully", type='positive')
+        serverDetailsTable.update()
+        serverDetailsTable.call_api_method('setQuickFilter', gEnv_Name)
+
+    def edit_serverDetail(SeverDet):
+        for rowData in SeverDet:
+            if rowData["EnvName"] == SeverDet[0]["EnvName"] and rowData["Software"] == SeverDet[0]["Software"]:
+                server_details_rows.remove(rowData)
+
+        server_details_rows.extend(SeverDet)
+        serverDetailsTable.options['rowData'] = sorted(server_details_rows, key=lambda data: data["EnvName"])
+        ui.notify("Server Detail Updated Successfully", type='positive')
+        serverDetailsTable.update()
+        serverDetailsTable.call_api_method('setQuickFilter', gEnv_Name)
+
+    async def NewServerDetailDlg():
+        selected_row = await awsDetailsTable.get_selected_row()
+        if selected_row:
+            server_detailsDlg.serverDetail(selected_row['environment_type'], "A", add_serverDetail, [])
         else:
-            ui.notify("No AWS detail selected", type='warning')
+            ui.notify("No AWS Detail row selected", type='warning')
 
-    with ui.card().classes('w-full'):
-        with ui.row().classes('w-full'):
-            awsDetailsTable = ui.aggrid({
-                'defaultColDef': {'flex': 1},
-                'columnDefs': aws_details_columns,
-                'rowData': aws_details_rows,
-                'rowSelection': 'single'
-            }).classes('w-full')
+    async def EditServerDetailDlg():
+        if gEnv_Name:
+            CustSpecSelect = await serverDetailsTable.get_selected_row()
+            if CustSpecSelect:
+                server_detailsDlg.serverDetail(gEnv_Name, "U", edit_serverDetail, CustSpecSelect)
+            else:
+                ui.notify("Server Detail is not Selected", type='negative')
+        else:
+            ui.notify("Environment is not Selected", type='negative')
 
-    with ui.dialog() as serverDetailsDialog:
-        with bash_window("Add Server Detail", classes='w-full'):
-            with ui.grid(columns=2).classes('gap-4'):
-                env_select = menu.form_input('Environment', "", "pl-6 w-5/6", "disable")
-                os_type_select = ui.select(options=Os_type_option, label='OS Type').classes('pl-6 w-5/6')
-                instance_type_select = ui.select(options=Instance_type_option, with_input=True, value="", label='Instance Type').classes('pl-6 w-5/6')
-                server_prefix_input = ui.input(label='Server Prefix').classes('pl-6 w-5/6')
-                server_seq_num_input = ui.input(label='Server Sequence Number').classes('pl-6 w-5/6')
-                quantity_input = ui.input(label='Quantity').classes('pl-6 w-5/6')
-                subnet_info_input = ui.input(label='Subnet Information').classes('pl-6 w-5/6')
+    async def delServerDetail():
+        row = await serverDetailsTable.get_selected_row()
 
-            with ui.row().classes('self-center place-items-center'):
-                ui.button('Add', on_click=save_server_details, icon='add').classes('m-2')
-                ui.button('Close', on_click=serverDetailsDialog.close, icon='close').classes('m-2')
+        if row is None:
+            ui.notify("No Row selected")
+        else:
+            server_details_rows.remove(row)
+            app.storage.server_details = server_details_rows
+            serverDetailsTable.options['rowData'] = sorted(server_details_rows, key=lambda data: data["EnvName"])
+            serverDetailsTable.update()
+            serverDetailsTable.call_api_method('setQuickFilter', gEnv_Name)  ## Filter after del
+            ui.notify("Custom Specs Information Removed Successfully", type='positive')
+
+    def save_server_info():
+        app.storage.server_details = server_details_rows
+        ui.notify("Server Details Saved", type='positive')
 
     with ui.card().classes('w-full mt-4'):
         with ui.row().classes('w-full'):
@@ -130,12 +101,7 @@ def setup_server_details(on_saverow: callable, environment_type_options: list, s
                 'rowData': server_details_rows,
                 'rowSelection': 'single'
             }).classes('w-full')
-
-        with ui.row().classes('self-center place-items-center'):
-            ui.button('Add', on_click=open_server_details_dialog, icon='add').classes('m-2')
-            ui.button('Edit', on_click=lambda: asyncio.create_task(edit_server_details()), icon='edit').classes('m-2')
-            ui.button('Delete', on_click=lambda: asyncio.create_task(remove_server_details()), icon='delete').classes('m-2')
-            ui.button('Save', on_click=save_all_details, icon='save').classes('m-2')
-
-    shared_state['update_aws_details'] = update_aws_details_table
-    update_aws_details_table()  # Initialize with existing AWS details
+            ui.button(icon='add', on_click=NewServerDetailDlg)
+            ui.button(icon='edit', on_click=EditServerDetailDlg)
+            ui.button(icon='delete', on_click=delServerDetail)
+            ui.button(icon='save', on_click=save_server_info)
