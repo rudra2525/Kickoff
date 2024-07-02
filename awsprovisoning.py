@@ -1,4 +1,4 @@
-from nicegui import ui
+from nicegui import ui, app
 import ProjectIntake
 import theme
 import ProjectDet
@@ -8,20 +8,76 @@ import myDbConnection
 import bldServerlist
 import menu
 from AWSAccounts import AWSAccount
-
 from ProjectInfo import ProjectInfo
-from nicegui import Client, APIRouter, ui
+from nicegui import Client, APIRouter
 from website.demo import section_window
-from aws_details_tab import setup_aws_details_tab, save_aws_details_to_state
-from Server_detail import setup_server_details
+from aws_details_tab import setup_aws_details_tab
 import NetworkTab
-from patching_info import setup_patching_info
+from patching_dal import setup_patching
+from monitoring import setup_monitoring
+from service_account import setup_service_acc
+from backup_info import setup_backup_info
+from custom_spec import setup_custSpec_info
+from serverDetail import setup_serverDetail
 
+def initialize_storage():
+    try:
+        _ = app.storage.aws_details
+    except AttributeError:
+        app.storage.aws_details = []
+
+    try:
+        _ = app.storage.network_info
+    except AttributeError:
+        app.storage.network_info = []
+
+    try:
+        _ = app.storage.server_details
+    except AttributeError:
+        app.storage.server_details = []
+
+    try:
+        _ = app.storage.user_info
+    except AttributeError:
+        app.storage.user_info = []
+
+    try:
+        _ = app.storage.patching_info
+    except AttributeError:
+        app.storage.patching_info = []
+
+    try:
+        _ = app.storage.monitoring_info
+    except AttributeError:
+        app.storage.monitoring_info = []
+
+    try:
+        _ = app.storage.service_acc_info
+    except AttributeError:
+        app.storage.service_acc_info = []
+
+    try:
+        _ = app.storage.backup_info
+    except AttributeError:
+        app.storage.backup_info = []
+
+    try:
+        _ = app.storage.custom_spec
+    except AttributeError:
+        app.storage.custom_spec = []
+
+    try:
+        _ = app.storage.firewall_req
+    except AttributeError:
+        app.storage.firewall_req = []
+
+initialize_storage()
 project_key = ""
 
 @ui.page('/ProjectIntake')
 def ProjIntake(client: Client):
     projectList = menu.GetProjectList("KICKOFF")
+
 
     def set_projDet(event):
         if event.value:
@@ -35,23 +91,6 @@ def ProjIntake(client: Client):
                     print(ProjInfo)  # Debugging: print the ProjInfo dictionary to inspect its structure
                     clientCode = ProjInfo.get('ClientCode', '')
                     envName = ProjInfo.get('EnvName', '')  # Use .get() to safely access keys
-                    shared_state = {
-                        'aws_account': '',
-                        'environment': '',
-                        'region': '',
-                        'aws_details': [],
-                        'server_details': [],
-                        'update_network_tab': None,  # This will be set by NetworkTab
-                        'update_aws_details': None,  # This will be set by setup_server_details
-                        'update_server_details': None  # This will be set by setup_server_details
-                    }
-
-                    def update_server_details():
-                        if shared_state.get('server_details'):
-                            print("Updating Server Details:", shared_state['server_details'])  # Debugging
-                            setup_server_details(on_saverow=None, environment_type_options=environment_type_options, shared_state=shared_state)
-
-                    shared_state['update_server_details'] = update_server_details
 
                     ProjectIntake.ProjectIntake(ProjInfo, tabs, aws_details, network_info)
                     with ui.tab_panels(tabs, value=aws_details).props('vertical').classes('w-full h-full'):
@@ -59,32 +98,31 @@ def ProjIntake(client: Client):
                         with ui.tab_panel(aws_details):
                             with section_window("AWS Account", classes='w-full'):
                                 if clientCode:
-                                    setup_aws_details_tab(clientCode, shared_state)
-                                    print("AWS Details Added:", shared_state['server_details'])  # Debugging
+                                    setup_aws_details_tab(clientCode, ProjDetail=ProjInfo, awsDetail=aws_details)
                         with ui.tab_panel(network_info):
                             with section_window("Network Information", classes='w-full'):
-                                NetworkTab.network_kickoff(ProjInfo, shared_state)
+                                NetworkTab.network_kickoff(ProjInfo)
                         with ui.tab_panel(server_details):
                             with section_window("Server Details", classes='w-full'):
-                                setup_server_details(on_saverow=None, environment_type_options=environment_type_options, shared_state=shared_state)
+                                setup_serverDetail(ProjDetail=ProjInfo)
                         with ui.tab_panel(user_info):
                             with section_window("AD User Access", classes='w-full'):
                                 ui.label("AD User Access")  # Replace this with AD User Access Module
                         with ui.tab_panel(patching_info):
                             with section_window("Patching Requirements", classes='w-full'):
-                                setup_patching_info(envName, clientCode, "A", lambda x: print(x), {})  # Adjust parameters as needed
+                                setup_patching(ProjDetail=ProjInfo)
                         with ui.tab_panel(monitoring_info):
                             with section_window("Monitoring Requirements", classes='w-full'):
-                                ui.label("Monitoring Requirements")  # Replace this with Monitoring Module
+                                setup_monitoring(ProjDetail=ProjInfo)
                         with ui.tab_panel(serviceAcc_info):
                             with section_window("Service Accounts Requirements", classes='w-full'):
-                                ui.label("Service Accounts Requirements")  # Replace this with Service Accounts Module
+                                setup_service_acc(ProjDetail=ProjInfo)
                         with ui.tab_panel(backup_info):
                             with section_window("Backup Requirements", classes='w-full'):
-                                ui.label("Backup Requirements")  # Replace this with Backup module
+                                setup_backup_info(ProjDetail=ProjInfo)
                         with ui.tab_panel(custom_spec):
                             with section_window("Custom Specs Requirements", classes='w-full'):
-                                ui.label("Custom Specs Requirements")  # Replace this with Custom specs module
+                                setup_custSpec_info(ProjDetail=ProjInfo)
                         with ui.tab_panel(firewall_req):
                             with section_window("Firewall Requirements", classes='w-full'):
                                 ui.label("Firewall Requirements")  # Replace this with Firewall module
@@ -98,12 +136,13 @@ def ProjIntake(client: Client):
                 network_info = ui.tab('Network Information', icon='router')
                 server_details = ui.tab('Server Details', icon='dns')
                 user_info = ui.tab('User Information', icon='person')
-                patching_info = ui.tab('Patching Information', icon='healing')  # Correctly reference the patching_info tab
+                patching_info = ui.tab('Patching Information', icon='healing')
                 monitoring_info = ui.tab('Monitoring Information', icon='visibility')
                 serviceAcc_info = ui.tab('Service Accounts Information', icon='smart_toy')
                 backup_info = ui.tab('Backup Information', icon='backup')
                 custom_spec = ui.tab('Custom Spec', icon='list')
                 firewall_req = ui.tab('Firewall Requirement', icon='shield')
+
 
 @ui.page('/EC2provisioning')
 def ec2Provisioning(client: Client):
